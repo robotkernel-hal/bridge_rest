@@ -36,21 +36,34 @@ using namespace string_util;
 BRIDGE_DEF(bridge_rest, bridge::rest);
 
 using namespace bridge;
+using namespace httpserver;
 
 rest::rest(const char*& bridgename, YAML::Node& node) :
-    bridge_base(bridgename, "bridge_rest", node)
+    bridge_base(bridgename, "bridge_rest", node),
+    ws(create_webserver(8080)), res(this)
 {
     pthread_mutex_init(&service_map_lock, NULL);
+    start();
 }
 
 rest::~rest() {
     pthread_mutex_destroy(&service_map_lock);
+    stop();
+}
+
+void rest::run() {
+    log(info, "rest server running!\n");
+    ws.start(true);
 }
 
 void rest::add_service(const robotkernel::service_t &svc) {
     pthread_mutex_lock(&service_map_lock);
     service_map[std::make_pair(svc.owner, svc.name)] = svc;
     pthread_mutex_unlock(&service_map_lock);
+
+    log(info, "adding /%s/%s\n", svc.owner.c_str(), svc.name.c_str());
+    ws.register_resource(format_string("/%s/%s", svc.owner.c_str(), svc.name.c_str()), &res);
+    log(info, "...done\n");
 }
 
 void rest::remove_service(const robotkernel::service_t &svc) {
@@ -64,5 +77,9 @@ void rest::remove_service(const robotkernel::service_t &svc) {
     }
 
     pthread_mutex_unlock(&service_map_lock);
+}
+      
+const std::shared_ptr<http_response> rest::resource::render(const http_request&) {
+    return std::shared_ptr<http_response>(new string_response("Hello, World!"));
 }
 

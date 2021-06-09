@@ -30,14 +30,27 @@
 #include "robotkernel/rk_type.h"
 #include "robotkernel/bridge_base.h"
 
+#include <httpserver.hpp>
+
 namespace bridge {
 #ifdef EMACS
 }
 #endif
 
 class rest : 
-    public robotkernel::bridge_base 
+    public robotkernel::bridge_base,
+    public robotkernel::runnable
 {
+    public:
+        class resource : public httpserver::http_resource {
+            private:
+                rest *parent;
+
+            public:
+                resource(rest *r) : parent(r) {};
+                const std::shared_ptr<httpserver::http_response> render(const httpserver::http_request&);
+        };
+
     public:
         //! construct bridge rest
         rest(const char*& bridgename, YAML::Node& node);
@@ -48,11 +61,17 @@ class rest :
         void add_service(const robotkernel::service_t &svc);
         void remove_service(const robotkernel::service_t &svc);
 
+        //! web server thread
+        void run();
+
     private:
         //! services map
         typedef std::map<std::pair<std::string, std::string>, robotkernel::service_t> service_map_t;
         service_map_t service_map;
         pthread_mutex_t service_map_lock;
+
+        httpserver::webserver ws;
+        resource res;
 };
 
 #ifdef EMACS

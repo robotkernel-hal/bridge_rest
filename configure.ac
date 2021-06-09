@@ -25,6 +25,7 @@ m4_ifdef([PKG_INSTALLDIR], [PKG_INSTALLDIR], [pkgconfigdir='${libdir}/pkgconfig'
 
 # Check dependencies
 PKG_CHECK_MODULES([ROBOTKERNEL], [robotkernel])
+PKG_CHECK_MODULES([LIBHTTPSERVER], [libhttpserver])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h termios.h])
