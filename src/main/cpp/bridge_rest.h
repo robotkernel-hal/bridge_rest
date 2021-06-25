@@ -63,10 +63,12 @@ class rest :
 
         //! web server thread
         void run();
+                
+        const std::shared_ptr<httpserver::http_response> render(const httpserver::http_request&);
 
     private:
         //! services map
-        typedef std::map<std::pair<std::string, std::string>, robotkernel::service_t> service_map_t;
+        typedef std::map<std::string, robotkernel::service_t> service_map_t;
         service_map_t service_map;
         pthread_mutex_t service_map_lock;
 
