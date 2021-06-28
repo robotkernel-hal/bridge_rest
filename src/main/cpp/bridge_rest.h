@@ -65,6 +65,8 @@ class rest :
         void run();
                 
         const std::shared_ptr<httpserver::http_response> render(const httpserver::http_request&);
+        
+        const std::shared_ptr<httpserver::http_response> list_services(const httpserver::http_request&);
 
     private:
         //! services map

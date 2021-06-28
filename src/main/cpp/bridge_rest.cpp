@@ -44,6 +44,8 @@ rest::rest(const char*& bridgename, YAML::Node& node) :
 {
     pthread_mutex_init(&service_map_lock, NULL);
     start();
+    
+    ws.register_resource(string("/api/v2.0/list"), &res);
 }
 
 rest::~rest() {
@@ -101,6 +103,11 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
     //uint64_t adr = (uint64_t)&svc[0];
 
     std::string name = req.get_path();
+    
+    if (name == "/api/v2.0/list") {
+        return list_services(req);
+    }
+
     auto& _svc = service_map[name];
 
     // request arguments
@@ -364,6 +371,24 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
             it != to_delete.end(); ++it) {
         delete[] (*it);
     }
+
+    YAML::Emitter emitter;
+    emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << answer;
+    std::string json(emitter.c_str() + 1);  // Remove beginning [ character
+
+    return std::shared_ptr<http_response>(new string_response(json));
+}
+
+const std::shared_ptr<http_response> rest::list_services(const http_request& req) {
+    YAML::Node answer = YAML::Node(YAML::NodeType::Map);
+
+    pthread_mutex_lock(&service_map_lock);
+
+    for (auto it = service_map.begin(); it != service_map.end(); ++it) {
+        answer["services"].push_back(it->first);
+    }
+
+    pthread_mutex_unlock(&service_map_lock);
 
     YAML::Emitter emitter;
     emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << answer;
