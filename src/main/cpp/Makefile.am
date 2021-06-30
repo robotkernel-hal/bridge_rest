@@ -7,5 +7,5 @@ libbridge_rest_la_CXXFLAGS = -Wall \
 									  @ROBOTKERNEL_CFLAGS@ \
 									  @LIBHTTPSERVER_CFLAGS@
 
-libbridge_rest_la_LDFLAGS  = @LIBHTTPSERVER_LIBS@ -Wall -release $(PACKAGE_VERSION)
+libbridge_rest_la_LDFLAGS  = @LIBHTTPSERVER_LIBS@ -Wall -release $(PACKAGE_VERSION) -Wl,--exclude-libs,ALL
 

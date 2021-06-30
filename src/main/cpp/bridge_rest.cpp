@@ -56,12 +56,16 @@ static bool starts_with(const std::string& str, const std::string& start) {
 
 rest::rest(const char*& bridgename, YAML::Node& node) :
     bridge_base(bridgename, "bridge_rest", node),
-    ws(create_webserver(8080).no_regex_checking()), res(this)
+    ws(create_webserver(8080)/*.no_regex_checking()*/), res(this)
 {
     pthread_mutex_init(&service_map_lock, NULL);
     start();
     
-    ws.register_resource(string("/api/v2.0/list"), &res);
+    try {
+        ws.register_resource(string("/api/v2.0/list"), &res);
+    } catch (std::exception& e) {
+        log(error, "caught exception: %s\n", e.what());
+    }
 }
 
 rest::~rest() {
@@ -90,8 +94,48 @@ void rest::add_service(const robotkernel::service_t &svc) {
     pthread_mutex_unlock(&service_map_lock);
 
     log(info, "adding %s\n", name.c_str());
-    ws.register_resource(name, &res);
+    ws.register_resource(name, &res, true);
     log(info, "...done\n");
+
+    int i = 1;
+    YAML::Node message_definition = YAML::Load(svc.service_definition);
+    if (message_definition["request"]) {
+        const YAML::Node& request = message_definition["request"];
+
+        for (YAML::const_iterator it = request.begin(); 
+                it != request.end(); ++it) {
+            for (const auto& kv : *it) {
+                string key   = kv.first.as<string>();
+                string value = kv.second.as<string>();
+                                
+                if (key == "string") {
+                    name = format_string("%s/{arg%d}", name.c_str(), i++);
+                    //name = format_string("%s/\{%s\}", name.c_str(), value.c_str());
+                }
+
+#define push_back_type(type) \
+                if (key == #type) {                                 \
+                    name = format_string("%s/{%s|[0-9]+}", name.c_str(), value.c_str()); \
+                }
+
+                push_back_type(uint64_t);
+                push_back_type(int64_t);
+                push_back_type(uint32_t);
+                push_back_type(int32_t);
+                push_back_type(uint16_t);
+                push_back_type(int16_t);
+                push_back_type(uint8_t);
+                push_back_type(int8_t);
+                push_back_type(float);
+                push_back_type(double);
+#undef push_back_type
+            }
+        }
+    }
+    
+    //log(info, "adding more services %s\n", name.c_str());
+    //ws.register_resource(name, &res);
+    //log(info, "...done\n");
 }
 
 void rest::remove_service(const robotkernel::service_t &svc) {
