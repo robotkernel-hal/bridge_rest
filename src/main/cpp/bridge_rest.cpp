@@ -20,7 +20,6 @@
  * along with robotkernel.	If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "robotkernel/rk_type.h"
 #include "robotkernel/helpers.h"
 #include "robotkernel/service.h"
 
@@ -256,11 +255,11 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         string vector = key.substr(0, equals_idx);
                         string real_key = key.substr(equals_idx + 1);
 
-                        const std::vector<robotkernel::rk_type> elem = service_response[i++];
+                        const std::vector<any> elem = any_cast<std::vector<any> >(service_response[i++]);
 #define push_back_type(type)                            \
                         if (real_key == #type) {                            \
                             for (unsigned i = 0; i < elem.size(); ++i) {    \
-                                answer[value].push_back((type)elem[i]);     \
+                                answer[value].push_back(any_cast<type>(elem[i]));     \
                         } }
                         
                         push_back_type(uint64_t);
@@ -280,7 +279,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                 } else {
 #define push_back_type(type)                            \
                     if (key == #type) {                                 \
-                        const type& v = service_response[i++];          \
+                        const type& v = any_cast<type>(service_response[i++]);          \
                         answer[value] = v;                              \
                     }
 
