@@ -8,11 +8,3 @@ class MainProject(base.RobotkernelConanFile):
     exports_sources = ["*", "!.gitignore"] + ["!%s" % x for x in tools.Git().excluded_files()]
     requires = "robotkernel/[~=6.0]@robotkernel/unstable", "libhttpserver/0.18.2@3rdparty/unstable"
 
-    def package(self):
-        autotools = AutoToolsBuildEnvironment(self)
-        autotools.make(target='install-strip')
-
-    #def build(self):
-    #    self.options['libhttpserver'].shared = True
-    #    return base.RobotkernelConanFile.build(self)
-
