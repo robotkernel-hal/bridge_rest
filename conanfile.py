@@ -1,8 +1,9 @@
-from conans import tools, python_requires, AutoToolsBuildEnvironment
+from conans import ConanFile, tools
 
-base = python_requires("conan_template/[~=5]@robotkernel/stable")
+class MainProject(ConanFile):
+    python_requires = "conan_template/[>=5]@robotkernel/stable"
+    python_requires_extend = "conan_template.RobotkernelConanFile"
 
-class MainProject(base.RobotkernelConanFile):
     name = "bridge_rest"
     description = "robotkernel-5 service bridge via rest api"
     exports_sources = ["*", "!.gitignore"] + ["!%s" % x for x in tools.Git().excluded_files()]
