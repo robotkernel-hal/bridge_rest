@@ -55,7 +55,7 @@ static bool starts_with(const std::string& str, const std::string& start) {
 
 rest::rest(const char*& bridgename, YAML::Node& node) :
     bridge_base(bridgename, "bridge_rest", node),
-    ws(create_webserver(8080)/*.no_regex_checking()*/), res(this)
+    ws(create_webserver(8080).no_regex_checking()), res(this)
 {
     pthread_mutex_init(&service_map_lock, NULL);
     start();
@@ -160,7 +160,10 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
     //uint8_t svc[1024];
     //req.set_data(&svc[0], signature.c_str());
     //uint64_t adr = (uint64_t)&svc[0];
-    
+    std::string method = req.get_method();
+
+    log(verbose, "got method \"%s\"\n", method.c_str());
+
     std::string content = req.get_content();
     log(verbose, "got content \"%s\"\n", content.c_str());
     auto content_node = YAML::Load(content);
@@ -174,6 +177,16 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
     auto& _svc = service_map[name];
     
     log(verbose, "rendering \"%s\"\n", name.c_str());
+
+    if (method == "GET") {
+        YAML::Node answer = YAML::Load(_svc.service_definition);
+
+        YAML::Emitter emitter;
+        emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << answer;
+        std::string json(emitter.c_str() + 1);  // Remove beginning [ character
+
+        return std::shared_ptr<http_response>(new string_response(json));
+    }
 
     // request arguments
     robotkernel::service_arglist_t service_request;
@@ -196,19 +209,11 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                     log(warning, "  field NOT found in json message\n");
                 }
                 
-                if (key == "string") {
-                    if (content_node[value]) {
-                        service_request.push_back(content_node[value].as<string>());
-                    } else {
-                        service_request.push_back(string("init"));
-                    }
-                }
-
 #define push_back_type(type) \
                 if (key == #type) {                                 \
                     if (content_node[value]) {                      \
-                        log(verbose, "  pushing to service_request, %d\n", (type)content_node[value].as<uint64_t>()); \
-                        service_request.push_back((type)content_node[value].as<uint64_t>());         \
+                        log(verbose, "  pushing to service_request, %d\n", (type)content_node[value].as<type>()); \
+                        service_request.push_back((type)content_node[value].as<type>());         \
                     } else {                                        \
                         service_request.push_back((type)0);         \
                     }                                               \
@@ -224,6 +229,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                 push_back_type(int8_t);
                 push_back_type(float);
                 push_back_type(double);
+                push_back_type(string);
 #undef push_back_type
 
 
@@ -272,7 +278,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         push_back_type(int8_t);
                         push_back_type(float);
                         push_back_type(double);
-//                        push_back_type(string);
+                        push_back_type(string);
 #undef push_back_type
 
                     }
