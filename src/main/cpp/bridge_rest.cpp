@@ -210,10 +210,19 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                     log(warning, "  field NOT found in json message\n");
                 }
                 
+#define push_back_type2(type, dec_type) \
+                if (key == #type) {                                 \
+                    if (content_node[value]) {                      \
+                        log(verbose, #type "  pushing to service_request, %d\n", (type)content_node[value].as<dec_type>()); \
+                        service_request.push_back((type)content_node[value].as<dec_type>());         \
+                    } else {                                        \
+                        service_request.push_back((type)0);         \
+                    }                                               \
+                }
 #define push_back_type(type) \
                 if (key == #type) {                                 \
                     if (content_node[value]) {                      \
-                        log(verbose, "  pushing to service_request, %d\n", (type)content_node[value].as<type>()); \
+                        log(verbose, #type "  pushing to service_request, %d\n", (type)content_node[value].as<type>()); \
                         service_request.push_back((type)content_node[value].as<type>());         \
                     } else {                                        \
                         service_request.push_back((type)0);         \
@@ -226,12 +235,13 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                 push_back_type(int32_t);
                 push_back_type(uint16_t);
                 push_back_type(int16_t);
-                push_back_type(uint8_t);
-                push_back_type(int8_t);
+                push_back_type2(uint8_t, uint16_t);
+                push_back_type2(int8_t, int16_t);
                 push_back_type(float);
                 push_back_type(double);
                 push_back_type(string);
 #undef push_back_type
+#undef push_back_type2
 
 
             }
@@ -241,6 +251,8 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
     // call robotkernel service
     robotkernel::service_arglist_t service_response;
     _svc.callback(service_request, service_response);
+
+    log(verbose, "service call returned, creating response...\n");
 
     std::list<uint8_t *> to_delete;
 
@@ -256,6 +268,8 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                 string key   = kv.first.as<string>();
                 string value = kv.second.as<string>();
 
+                log(verbose, "parsing field %s - %s\n", key.c_str(), value.c_str());
+
                 if (starts_with(key, "vector")) {
                     const size_t equals_idx = key.find_first_of('/');
                     if (std::string::npos != equals_idx) {
@@ -263,6 +277,12 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         string real_key = key.substr(equals_idx + 1);
 
                         const std::vector<rk_type> elem = service_response[i++];
+#define push_back_type2(type, type2)                            \
+                        if (real_key == #type) {                            \
+                            for (unsigned i = 0; i < elem.size(); ++i) {    \
+                                const type2& v = (type)(elem[i]);          \
+                                answer[value].push_back(v);     \
+                        } }
 #define push_back_type(type)                            \
                         if (real_key == #type) {                            \
                             for (unsigned i = 0; i < elem.size(); ++i) {    \
@@ -275,18 +295,26 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         push_back_type(int32_t);
                         push_back_type(uint16_t);
                         push_back_type(int16_t);
-                        push_back_type(uint8_t);
-                        push_back_type(int8_t);
+                        push_back_type2(uint8_t, uint16_t);
+                        push_back_type2(int8_t, int16_t);
                         push_back_type(float);
                         push_back_type(double);
 #undef push_back_type
+#undef push_back_type2
                         if (real_key == "string") {
                             for (unsigned i = 0; i < elem.size(); ++i) {
-                                answer[value].push_back((char *)(elem[i]));
+                                string v = elem[i];
+                                v.erase(std::remove(v.begin(), v.end(), '\x00'), v.end());
+                                answer[value].push_back(v);
                         } }
 
                     }
                 } else {
+#define push_back_type2(type, type2)                            \
+                    if (key == #type) {                                 \
+                        const type2& v = (type)(service_response[i++]);          \
+                        answer[value] = v;                              \
+                    }
 #define push_back_type(type)                            \
                     if (key == #type) {                                 \
                         const type& v = (type)(service_response[i++]);          \
@@ -299,13 +327,15 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                     push_back_type(int32_t);
                     push_back_type(uint16_t);
                     push_back_type(int16_t);
-                    push_back_type(uint8_t);
-                    push_back_type(int8_t);
+                    push_back_type2(uint8_t, uint16_t);
+                    push_back_type2(int8_t, int16_t);
                     push_back_type(float);
                     push_back_type(double);
 #undef push_back_type
+#undef push_back_type2
                     if (key == "string") {
-                        const string& v = (char *)(service_response[i++]);
+                        string v = service_response[i++];
+                        v.erase(std::remove(v.begin(), v.end(), '\x00'), v.end());
                         answer[value] = v;
                     }
                 }
@@ -322,7 +352,12 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
     emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << answer;
     std::string json(emitter.c_str() + 1);  // Remove beginning [ character
 
-    return std::shared_ptr<http_response>(new string_response(json));
+    log(verbose, "returning: %s\n", emitter.c_str());
+
+    new httpserver::string_response("POST response", 200);
+    auto response = std::shared_ptr<http_response>(new string_response(json, http::http_utils::http_ok, "application/json; charset=utf-8"));
+    response->with_header("Access-Control-Allow-Origin","*");
+    return response;
 }
 
 const std::shared_ptr<http_response> rest::list_services(const http_request& req) {
