@@ -23,10 +23,10 @@
 #ifndef ROBOTKERNEL_CLI_BRIDGE_H
 #define ROBOTKERNEL_CLI_BRIDGE_H
 
-#include "robotkernel/robotkernel.h"
+#include "robotkernel/kernel.h"
 #include "robotkernel/service.h"
 
-#include "robotkernel/base/bridge_base.h"
+#include "robotkernel/bridge_base.h"
 
 #include <httpserver.hpp>
 

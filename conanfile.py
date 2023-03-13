@@ -7,5 +7,5 @@ class MainProject(ConanFile):
     name = "bridge_rest"
     description = "robotkernel-5 service bridge via rest api"
     exports_sources = ["*", "!.gitignore"] + ["!%s" % x for x in tools.Git().excluded_files()]
-    requires = "robotkernel/[~=6.0]@robotkernel/unstable", "libhttpserver/0.18.2@3rdparty/unstable"
+    requires = "robotkernel/[~=5]@robotkernel/stable", "libhttpserver/0.18.2@3rdparty/unstable"
 

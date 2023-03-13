@@ -22,6 +22,7 @@
 
 #include "robotkernel/helpers.h"
 #include "robotkernel/service.h"
+#include "robotkernel/rk_type.h"
 
 #include "bridge_rest.h"
 
@@ -261,11 +262,11 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         string vector = key.substr(0, equals_idx);
                         string real_key = key.substr(equals_idx + 1);
 
-                        const std::vector<any> elem = any_cast<std::vector<any> >(service_response[i++]);
+                        const std::vector<rk_type> elem = service_response[i++];
 #define push_back_type(type)                            \
                         if (real_key == #type) {                            \
                             for (unsigned i = 0; i < elem.size(); ++i) {    \
-                                answer[value].push_back(any_cast<type>(elem[i]));     \
+                                answer[value].push_back((type)(elem[i]));     \
                         } }
                         
                         push_back_type(uint64_t);
@@ -278,14 +279,17 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         push_back_type(int8_t);
                         push_back_type(float);
                         push_back_type(double);
-                        push_back_type(string);
 #undef push_back_type
+                        if (real_key == "string") {
+                            for (unsigned i = 0; i < elem.size(); ++i) {
+                                answer[value].push_back((char *)(elem[i]));
+                        } }
 
                     }
                 } else {
 #define push_back_type(type)                            \
                     if (key == #type) {                                 \
-                        const type& v = any_cast<type>(service_response[i++]);          \
+                        const type& v = (type)(service_response[i++]);          \
                         answer[value] = v;                              \
                     }
 
@@ -299,8 +303,11 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                     push_back_type(int8_t);
                     push_back_type(float);
                     push_back_type(double);
-                    push_back_type(string);
 #undef push_back_type
+                    if (key == "string") {
+                        const string& v = (char *)(service_response[i++]);
+                        answer[value] = v;
+                    }
                 }
             }
         }
