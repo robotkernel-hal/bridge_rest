@@ -70,6 +70,7 @@ rest::rest(const char*& bridgename, YAML::Node& node) :
 
 rest::~rest() {
     pthread_mutex_destroy(&service_map_lock);
+    ws.stop();
     stop();
 }
 
