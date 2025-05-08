@@ -94,9 +94,8 @@ void rest::add_service(const robotkernel::service_t &svc) {
     service_map[name] = svc;
     pthread_mutex_unlock(&service_map_lock);
 
-    log(info, "adding %s\n", name.c_str());
+    log(verbose, "adding %s\n", name.c_str());
     ws.register_resource(name, &res, true);
-    log(info, "...done\n");
 
     int i = 1;
     YAML::Node message_definition = YAML::Load(svc.service_definition);
@@ -230,6 +229,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         add_vector_type(float);
                         add_vector_type(double);
                         add_vector_type(char);
+                        add_vector_type(string);
 #undef add_vector_type
                     }
                 } else {
@@ -332,7 +332,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         if (real_key == "string") {
                             for (unsigned i = 0; i < elem.size(); ++i) {
                                 string v = elem[i];
-                                v.erase(std::remove(v.begin(), v.end(), '\x00'), v.end());
+                                //v.erase(std::remove(v.begin(), v.end(), '\x00'), v.end());
                                 answer[value].push_back(v);
                         } }
 
