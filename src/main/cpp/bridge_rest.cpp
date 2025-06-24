@@ -94,9 +94,8 @@ void rest::add_service(const robotkernel::service_t &svc) {
     service_map[name] = svc;
     pthread_mutex_unlock(&service_map_lock);
 
-    log(info, "adding %s\n", name.c_str());
+    log(verbose, "adding %s\n", name.c_str());
     ws.register_resource(name, &res, true);
-    log(info, "...done\n");
 
     int i = 1;
     YAML::Node message_definition = YAML::Load(svc.service_definition);
@@ -205,46 +204,74 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
 
                 log(verbose, "request field: %s %s\n", key.c_str(), value.c_str());
 
-                if (content_node[value]) {
-                    log(verbose, "  field found in json message\n");
-                } else {
-                    log(warning, "  field NOT found in json message\n");
-                }
-                
-#define push_back_type2(type, dec_type) \
-                if (key == #type) {                                 \
-                    if (content_node[value]) {                      \
-                        log(verbose, #type "  pushing to service_request, %d\n", (type)content_node[value].as<dec_type>()); \
-                        service_request.push_back((type)content_node[value].as<dec_type>());         \
-                    } else {                                        \
-                        service_request.push_back((type)0);         \
-                    }                                               \
-                }
-#define push_back_type(type) \
-                if (key == #type) {                                 \
-                    if (content_node[value]) {                      \
-                        log(verbose, #type "  pushing to service_request, %d\n", (type)content_node[value].as<type>()); \
-                        service_request.push_back((type)content_node[value].as<type>());         \
-                    } else {                                        \
-                        service_request.push_back((type)0);         \
-                    }                                               \
-                }
+                if (starts_with(key, "vector")) {
+                    const size_t equals_idx = key.find_first_of('/');
+                    if (std::string::npos != equals_idx) {
+                        string vector = key.substr(0, equals_idx);
+                        string real_key = key.substr(equals_idx + 1);
 
-                push_back_type(uint64_t);
-                push_back_type(int64_t);
-                push_back_type(uint32_t);
-                push_back_type(int32_t);
-                push_back_type(uint16_t);
-                push_back_type(int16_t);
-                push_back_type2(uint8_t, uint16_t);
-                push_back_type2(int8_t, int16_t);
-                push_back_type(float);
-                push_back_type(double);
-                push_back_type(string);
+#define add_vector_type(type) \
+                        if (real_key == #type) {                                                                       \
+                            std::vector<rk_type> entries;                                                      \
+                            for (const auto& value : content_node[value]) { \
+                                entries.push_back(value.as<type>()); \
+                            } \
+                            service_request.push_back(entries);                                                     \
+                        }
+                        add_vector_type(uint64_t);
+                        add_vector_type(int64_t);
+                        add_vector_type(uint32_t);
+                        add_vector_type(int32_t);
+                        add_vector_type(uint16_t);
+                        add_vector_type(int16_t);
+                        add_vector_type(uint8_t);
+                        add_vector_type(int8_t);
+                        add_vector_type(float);
+                        add_vector_type(double);
+                        add_vector_type(char);
+                        add_vector_type(string);
+#undef add_vector_type
+                    }
+                } else {
+                    if (content_node[value]) {
+                        log(verbose, "  field found in json message\n");
+                    } else {
+                        log(warning, "  field NOT found in json message\n");
+                    }
+
+#define push_back_type2(type, dec_type) \
+                    if (key == #type) {                                 \
+                        if (content_node[value]) {                      \
+                            log(verbose, #type "  pushing to service_request, %d\n", (type)content_node[value].as<dec_type>()); \
+                            service_request.push_back((type)content_node[value].as<dec_type>());         \
+                        } else {                                        \
+                            service_request.push_back((type)0);         \
+                        }                                               \
+                    }
+#define push_back_type(type) \
+                    if (key == #type) {                                 \
+                        if (content_node[value]) {                      \
+                            log(verbose, #type "  pushing to service_request, %d\n", (type)content_node[value].as<type>()); \
+                            service_request.push_back((type)content_node[value].as<type>());         \
+                        } else {                                        \
+                            service_request.push_back((type)0);         \
+                        }                                               \
+                    }
+
+                    push_back_type(uint64_t);
+                    push_back_type(int64_t);
+                    push_back_type(uint32_t);
+                    push_back_type(int32_t);
+                    push_back_type(uint16_t);
+                    push_back_type(int16_t);
+                    push_back_type2(uint8_t, uint16_t);
+                    push_back_type2(int8_t, int16_t);
+                    push_back_type(float);
+                    push_back_type(double);
+                    push_back_type(string);
 #undef push_back_type
 #undef push_back_type2
-
-
+                }
             }
         }
     }
@@ -305,7 +332,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         if (real_key == "string") {
                             for (unsigned i = 0; i < elem.size(); ++i) {
                                 string v = elem[i];
-                                v.erase(std::remove(v.begin(), v.end(), '\x00'), v.end());
+                                //v.erase(std::remove(v.begin(), v.end(), '\x00'), v.end());
                                 answer[value].push_back(v);
                         } }
 
