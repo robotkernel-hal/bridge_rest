@@ -5,10 +5,10 @@ class MainProject(ConanFile):
     python_requires_extend = "conan_template.RobotkernelConanFile"
 
     name = "bridge_rest"
-    description = "robotkernel-5 service bridge via rest api"
+    description = "robotkernel service bridge via rest api"
     exports_sources = ["*", "!.gitignore"]
 
     def requirements(self):
-        self.requires("robotkernel/[~=5]@robotkernel/stable")
+        self.requires("robotkernel/[~6]@robotkernel/unstable")
         self.requires("libhttpserver/0.18.2@3rdparty/stable")
 

@@ -186,7 +186,9 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
         emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << answer;
         std::string json(emitter.c_str() + 1);  // Remove beginning [ character
 
-        return std::shared_ptr<http_response>(new string_response(json));
+        auto response = std::shared_ptr<http_response>(new string_response(json, http::http_utils::http_ok, "application/json; charset=utf-8"));
+        response->with_header("access-control-allow-origin", "*");
+        return response;
     }
 
     // request arguments
@@ -403,6 +405,8 @@ const std::shared_ptr<http_response> rest::list_services(const http_request& req
     emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << answer;
     std::string json(emitter.c_str() + 1);  // Remove beginning [ character
 
-    return std::shared_ptr<http_response>(new string_response(json));
+    auto response = std::shared_ptr<http_response>(new string_response(json));
+    response->with_header("access-control-allow-origin", "*");
+    return response;
 }
 
