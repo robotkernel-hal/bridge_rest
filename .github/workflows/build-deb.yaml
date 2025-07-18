@@ -49,7 +49,7 @@ jobs:
           ./bootstrap
           mkdir build
           cd build
-          ../configure --disable-examples --enable-static
+          ../configure --disable-examples --enable-static --disable-shared
           make
           make install # (optionally to install on the system)
 
