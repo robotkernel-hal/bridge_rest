@@ -103,7 +103,7 @@ jobs:
           source bin/activate
 
           python3 -m pip install --upgrade pip
-          pip3 install cloudsmith-rest
+          pip3 install cloudsmith-cli
 
           cloudsmith push deb robertburger/robotkernel/${{ matrix.os }}/${{ matrix.version }} ../${FILENAME} \
             --republish \
