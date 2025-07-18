@@ -44,7 +44,7 @@ jobs:
 
       - name: Build and install external libhttpserver
         run: |
-          git clone -b v0.11.1 https://github.com/etr/libhttpserver.git
+          git clone -b 0.19.0 https://github.com/etr/libhttpserver.git
           cd libhttpserver
           ./bootstrap
           mkdir build
