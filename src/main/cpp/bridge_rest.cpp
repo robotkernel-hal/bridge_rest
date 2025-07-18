@@ -26,12 +26,8 @@
 
 #include "bridge_rest.h"
 
-#include "string_util/string_util.h"
-
 using namespace std;
-using namespace std::placeholders;
 using namespace robotkernel;
-using namespace string_util;
 
 BRIDGE_DEF(bridge_rest, bridge::rest);
 
@@ -88,7 +84,7 @@ public:
 
 
 void rest::add_service(const robotkernel::service_t &svc) {
-    std::string name = format_string("/api/v2.0/%s/%s", svc.owner.c_str(), svc.name.c_str());
+    std::string name = string_printf("/api/v2.0/%s/%s", svc.owner.c_str(), svc.name.c_str());
 
     pthread_mutex_lock(&service_map_lock);
     service_map[name] = svc;
@@ -109,13 +105,13 @@ void rest::add_service(const robotkernel::service_t &svc) {
                 string value = kv.second.as<string>();
                                 
                 if (key == "string") {
-                    name = format_string("%s/{arg%d}", name.c_str(), i++);
-                    //name = format_string("%s/\{%s\}", name.c_str(), value.c_str());
+                    name = string_printf("%s/{arg%d}", name.c_str(), i++);
+                    //name = string_printf("%s/\{%s\}", name.c_str(), value.c_str());
                 }
 
 #define push_back_type(type) \
                 if (key == #type) {                                 \
-                    name = format_string("%s/{%s|[0-9]+}", name.c_str(), value.c_str()); \
+                    name = string_printf("%s/{%s|[0-9]+}", name.c_str(), value.c_str()); \
                 }
 
                 push_back_type(uint64_t);
@@ -139,7 +135,7 @@ void rest::add_service(const robotkernel::service_t &svc) {
 }
 
 void rest::remove_service(const robotkernel::service_t &svc) {
-    std::string name = format_string("/api/v2.0/%s/%s", svc.owner.c_str(), svc.name.c_str());
+    std::string name = string_printf("/api/v2.0/%s/%s", svc.owner.c_str(), svc.name.c_str());
 
     pthread_mutex_lock(&service_map_lock);
 
