@@ -1,0 +1,50 @@
+bridge-rest (6.0.0~pre1) unstable; urgency=low
+
+  * change: license to LGPL-V3
+  * cleanup: project structure
+  * fix: latest rk changes
+  * change: inc to rk 6
+  * Merge branch 'release/5.0.0' of rmc-github.robotic.dlr.de:robotkernel/bridge-rest into release/5.0.0
+  * change: latest conan changes
+  * fix: conan dependencies
+  * fix: string response
+  * fix: vector type decoding
+  * fix: stopping webserver
+  * fix: some datatypes where casted wrong
+  * fix: build with robotkernel 5*
+  * fix: http-get return service_defintition, http-post calls service
+  * change: updated conanfile python_requiers
+  * fix: do not strip symbols
+  * change: latest mods for robotkernel-6 changes
+
+ -- Robert Burger <robert.burger@dlr.de>  Fri, 18 Jul 2025 11:14:48 +0200
+
+bridge-rest (5.0.0) unstable; urgency=low
+
+  * change: license to LGPL-V3
+  * cleanup: project structure
+  * fix: latest rk changes
+  * change: inc to rk 6
+  * Merge branch 'release/5.0.0' of rmc-github.robotic.dlr.de:robotkernel/bridge-rest into release/5.0.0
+  * change: latest conan changes
+  * fix: conan dependencies
+  * fix: string response
+  * fix: vector type decoding
+  * fix: stopping webserver
+  * fix: some datatypes where casted wrong
+  * fix: build with robotkernel 5*
+  * fix: http-get return service_defintition, http-post calls service
+  * change: updated conanfile python_requiers
+  * fix: do not strip symbols
+  * change: latest mods for robotkernel-6 changes
+  * DEL: comments
+  * ADD: parsing regex
+  * MERGE: branch 'master' of rmc-github.robotic.dlr.de:robotkernel/bridge-rest
+  * ADD: rendering simple rest services working
+  * ADD: list service
+  * FIX: simple calls working
+  * ADD: rest server
+  * ADD: initial import
+
+ -- Robert Burger <robert.burger@dlr.de>  Fri, 18 Jul 2025 11:14:48 +0200
+
