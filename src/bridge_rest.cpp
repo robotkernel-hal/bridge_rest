@@ -53,12 +53,13 @@ static bool starts_with(const std::string& str, const std::string& start) {
 
 rest::rest(const char*& bridgename, YAML::Node& node) :
     bridge_base(bridgename, "bridge_rest", node),
-    ws(create_webserver(8080).no_regex_checking()), res(this)
+    ws(create_webserver(8080).regex_checking()), res(this)
 {
     pthread_mutex_init(&service_map_lock, NULL);
     start();
     
     try {
+        ws.register_resource(string("^/.*"), &res);
         ws.register_resource(string("/api/v2.0/list"), &res);
     } catch (std::exception& e) {
         log(error, "caught exception: %s\n", e.what());
@@ -85,7 +86,9 @@ public:
 
 
 void rest::add_service(const robotkernel::service_t &svc) {
-    std::string name = string_printf("/api/v2.0/%s/%s", svc.owner.c_str(), svc.name.c_str());
+    std::string svc_name = svc.name;
+    std::replace(svc_name.begin(), svc_name.end(), '.','/');
+    std::string name = string_printf("/api/v2.0/%s/%s", svc.owner.c_str(), svc_name.c_str());
 
     pthread_mutex_lock(&service_map_lock);
     service_map[name] = svc;
@@ -177,15 +180,46 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
     log(verbose, "rendering \"%s\"\n", name.c_str());
 
     if (method == "GET") {
-        YAML::Node answer = YAML::Load(_svc.service_definition);
+         YAML::Node answer = YAML::Load(_svc.service_definition);
+
+        YAML::Node links(YAML::NodeType::Sequence);
+
+        YAML::Node self_link;
+        self_link["rel"] = "self";
+        self_link["href"] = name;
+        links.push_back(self_link);
+
+        YAML::Node invoke_link;
+        invoke_link["rel"] = "invoke";
+        invoke_link["href"] = name;
+        invoke_link["method"] = "POST";
+        links.push_back(invoke_link);
+
+        YAML::Node list_link;
+        list_link["rel"] = "list";
+        list_link["href"] = "/api/v2.0/list";
+        links.push_back(list_link);
+
+
+        for (auto it = service_map.begin(); it != service_map.end(); ++it) {
+            if (it->first.compare(0, name.size(), name) == 0) {
+                YAML::Node sub_list_link;
+                sub_list_link["rel"] = it->first.substr(9);
+                sub_list_link["href"] = it->first;
+                links.push_back(sub_list_link);
+            }
+        }
+
+        answer["_links"] = links;
 
         YAML::Emitter emitter;
         emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << answer;
-        std::string json(emitter.c_str() + 1);  // Remove beginning [ character
+        std::string json(emitter.c_str() + 1);
 
-        auto response = std::shared_ptr<http_response>(new string_response(json, http::http_utils::http_ok, "application/json; charset=utf-8"));
-        response->with_header("access-control-allow-origin", "*");
-        return response;
+        auto response = std::shared_ptr<http_response>(
+                new string_response(json, http::http_utils::http_ok, "application/json; charset=utf-8"));
+         response->with_header("access-control-allow-origin", "*");
+         return response;
     }
 
     // request arguments
@@ -375,15 +409,27 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
         delete[] (*it);
     }
 
+    YAML::Node links(YAML::NodeType::Sequence);
+
+    YAML::Node self_link;
+    self_link["rel"] = "self";
+    self_link["href"] = name;
+    links.push_back(self_link);
+
+    YAML::Node list_link;
+    list_link["rel"] = "list";
+    list_link["href"] = "/api/v2.0/list";
+    links.push_back(list_link);
+
+    answer["_links"] = links;
+
     YAML::Emitter emitter;
     emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << answer;
-    std::string json(emitter.c_str() + 1);  // Remove beginning [ character
-
-    log(verbose, "returning: %s\n", emitter.c_str());
-
-    new httpserver::string_response("POST response", 200);
-    auto response = std::shared_ptr<http_response>(new string_response(json, http::http_utils::http_ok, "application/json; charset=utf-8"));
-    response->with_header("Access-Control-Allow-Origin","*");
+    std::string json(emitter.c_str() + 1);
+ 
+    auto response = std::shared_ptr<http_response>(
+            new string_response(json, http::http_utils::http_ok, "application/json; charset=utf-8"));
+    response->with_header("Access-Control-Allow-Origin", "*");
     return response;
 }
 
