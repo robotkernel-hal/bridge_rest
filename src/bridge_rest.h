@@ -31,16 +31,126 @@
 
 #include <httpserver.hpp>
 
-namespace bridge {
-#ifdef EMACS
-}
+#ifdef REST_SVC_MAP_DEBUG
+#define rest_svc_map_debug(...) printf(__VA_ARGS__)
+#else 
+#define rest_svc_map_debug(...)
 #endif
+
+namespace bridge {
 
 class rest : 
     public robotkernel::bridge_base,
     public robotkernel::runnable
 {
     public:
+        class rest_service {
+            public:
+                std::string name;
+                robotkernel::service_t *svc;
+
+            public:
+                rest_service() : name(""), svc(nullptr) {};
+                rest_service(std::string name, std::string rest, robotkernel::service_t svc) : name(name), svc(nullptr) { 
+                    if (rest == "") {
+                        // the real endpoint
+                        this->svc = new robotkernel::service_t(); 
+                        *this->svc = svc; 
+                    } else {
+                        insert(rest, svc); 
+                    }
+                };
+                
+                ~rest_service() { 
+                    rest_svc_map_debug("%s: destructing rest_service\n", name.c_str());
+
+                    if (svc != nullptr) { 
+                        delete svc; 
+                    } 
+                };
+
+                void insert(std::string rest, robotkernel::service_t svc) {
+                    size_t pos_dot = rest.find_first_of(".");
+                    rest_svc_map_debug("%s: pos_dot is %d for %s\n", name.c_str(), (int)pos_dot, rest.c_str());
+
+                    std::string key, value("");
+                    if (pos_dot == std::string::npos) {  // the real endpoint
+                        key = rest;
+                    } else {
+                        key = rest.substr(0, pos_dot);
+                        value = rest.substr(pos_dot + 1);
+                    }
+
+                    if (children.find(key) == children.end()) {
+                        rest_svc_map_debug("%s: inserting new key %s and value %s \n", name.c_str(), key.c_str(), value.c_str());
+                        children.emplace(key, new rest_service(key, value, svc));
+                    } else {
+                        rest_svc_map_debug("%s: inserting exit key %s and value %s \n", name.c_str(), key.c_str(), value.c_str());
+                        children[key]->insert(value, svc);
+                    }
+                }
+
+                bool remove(std::string rest) {
+                    size_t pos_dot = rest.find_first_of(".");
+                    rest_svc_map_debug(" %s: pos_dot is %d for %s\n", name.c_str(), (int)pos_dot, rest.c_str());
+
+                    std::string key, value("");
+                    if (pos_dot == std::string::npos) {  // the real endpoint
+                        key = rest;
+                    } else {
+                        key = rest.substr(0, pos_dot);
+                        value = rest.substr(pos_dot + 1);
+                    }
+
+                    if (children.find(key) == children.end()) {
+                        rest_svc_map_debug("rem %s: nothing key %s and value %s \n", name.c_str(), key.c_str(), value.c_str());
+                    } else {
+                        rest_svc_map_debug("%s: inserting exit key %s and value %s \n", name.c_str(), key.c_str(), value.c_str());
+                        if (children[key]->remove(value)) {
+                            // empty
+                            auto it = children.find(key);
+                            delete children[key];
+                            children.erase(it);
+                        }
+                    }
+                            
+                    return children.empty();                
+                }
+
+                void printme(std::string indent) {
+                    printf("%sthis is %s : %p\n", indent.c_str(), name.c_str(), svc);
+
+                    for (const auto& c : children) {
+                        c.second->printme(indent + " ");
+                    }
+                }
+
+                rest_service * get_rest_service(std::string name) {
+                    size_t pos_dot = name.find_first_of(".");
+                    rest_svc_map_debug("get_rest_service %s, my name %s, svc anchor %p, pos_dot %d\n", name.c_str(), this->name.c_str(), this->svc, (int)pos_dot);
+
+                    std::string key, value("");
+                    if (pos_dot == std::string::npos) {
+                        key = name;
+                    } else {
+                        key = name.substr(0, pos_dot);
+                        value = name.substr(pos_dot + 1);
+                    }
+
+                    if (children.find(key) != children.end()) {
+                        if (value == "") {
+                            return children[key];
+                        }
+
+                        return children[key]->get_rest_service(value);
+                    }
+
+                    return nullptr; 
+                }
+
+                std::map<std::string, rest_service *> children;
+        };
+
         class resource : public httpserver::http_resource {
             private:
                 rest *parent;
@@ -69,18 +179,14 @@ class rest :
 
     private:
         //! services map
-        typedef std::map<std::string, robotkernel::service_t> service_map_t;
-        service_map_t service_map;
+        rest_service services;
         pthread_mutex_t service_map_lock;
 
         httpserver::webserver ws;
         resource res;
 };
 
-#ifdef EMACS
-{
-#endif
-}
+}; // namespace bridge
 
 #endif
 

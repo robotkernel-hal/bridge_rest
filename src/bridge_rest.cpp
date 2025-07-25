@@ -76,87 +76,27 @@ void rest::run() {
     log(info, "rest server running!\n");
     ws.start(true);
 }
-        
-class hello_world_resource : public http_resource {
-public:
-    const std::shared_ptr<http_response> render(const http_request&) {
-        return std::shared_ptr<http_response>(new string_response("Hello, World!"));
-    }
-};
-
 
 void rest::add_service(const robotkernel::service_t &svc) {
-    std::string svc_name = svc.name;
-    std::replace(svc_name.begin(), svc_name.end(), '.','/');
-    std::string name = string_printf("/api/v2.0/%s/%s", svc.owner.c_str(), svc_name.c_str());
-
     pthread_mutex_lock(&service_map_lock);
-    service_map[name] = svc;
+    services.insert(svc.owner + "." + svc.name, svc);
     pthread_mutex_unlock(&service_map_lock);
 
-    log(verbose, "adding %s\n", name.c_str());
     ws.register_resource(name, &res, true);
-
-    int i = 1;
-    YAML::Node message_definition = YAML::Load(svc.service_definition);
-    if (message_definition["request"]) {
-        const YAML::Node& request = message_definition["request"];
-
-        for (YAML::const_iterator it = request.begin(); 
-                it != request.end(); ++it) {
-            for (const auto& kv : *it) {
-                string key   = kv.first.as<string>();
-                string value = kv.second.as<string>();
-                                
-                if (key == "string") {
-                    name = string_printf("%s/{arg%d}", name.c_str(), i++);
-                    //name = string_printf("%s/\{%s\}", name.c_str(), value.c_str());
-                }
-
-#define push_back_type(type) \
-                if (key == #type) {                                 \
-                    name = string_printf("%s/{%s|[0-9]+}", name.c_str(), value.c_str()); \
-                }
-
-                push_back_type(uint64_t);
-                push_back_type(int64_t);
-                push_back_type(uint32_t);
-                push_back_type(int32_t);
-                push_back_type(uint16_t);
-                push_back_type(int16_t);
-                push_back_type(uint8_t);
-                push_back_type(int8_t);
-                push_back_type(float);
-                push_back_type(double);
-#undef push_back_type
-            }
-        }
-    }
-    
-    //log(info, "adding more services %s\n", name.c_str());
-    //ws.register_resource(name, &res);
-    //log(info, "...done\n");
 }
 
 void rest::remove_service(const robotkernel::service_t &svc) {
     std::string name = string_printf("/api/v2.0/%s/%s", svc.owner.c_str(), svc.name.c_str());
 
     pthread_mutex_lock(&service_map_lock);
-
-    for (auto it = service_map.begin(); it != service_map.end(); ++it) {
-        if ((it->first == name)) {
-            service_map.erase(it);
-            break;
-        }
-    }
-
+    services.remove(svc.owner + "." + svc.name);
     pthread_mutex_unlock(&service_map_lock);
 }
 
 const std::shared_ptr<http_response> rest::resource::render(const http_request& req) {
     return parent->render(req);
 }
-      
+
 const std::shared_ptr<http_response> rest::render(const http_request& req) {
     //uint8_t svc[1024];
     //req.set_data(&svc[0], signature.c_str());
@@ -169,45 +109,78 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
     log(verbose, "got content \"%s\"\n", content.c_str());
     auto content_node = YAML::Load(content);
 
+//    services.printme("");
+
     std::string name = req.get_path();
+    std::string svc_name = name;
+    std::replace(svc_name.begin(), svc_name.end(), '/','.');
+    auto rest_svc = services.get_rest_service(svc_name.substr(10));
+//    if (rest_svc) {
+//        log(verbose, "have rest svc for this node: %s, %p\n", rest_svc->name.c_str(), rest_svc->svc);
+//    } else {
+//        log(verbose, "NO rest svc for this node\n");
+//    }
+
     
     if (name == "/api/v2.0/list") {
         return list_services(req);
     }
 
-    auto& _svc = service_map[name];
+//    auto& _svc = service_map[name];
+    if (!rest_svc)
+        return list_services(req);
     
     log(verbose, "rendering \"%s\"\n", name.c_str());
 
-    if (method == "GET") {
-         YAML::Node answer = YAML::Load(_svc.service_definition);
+    if ((method == "GET") && rest_svc) {
+        YAML::Node answer;
 
-        YAML::Node links(YAML::NodeType::Sequence);
+        YAML::Node links(YAML::NodeType::Map);
 
         YAML::Node self_link;
-        self_link["rel"] = "self";
         self_link["href"] = name;
-        links.push_back(self_link);
+        links["self"] = self_link;
 
-        YAML::Node invoke_link;
-        invoke_link["rel"] = "invoke";
-        invoke_link["href"] = name;
-        invoke_link["method"] = "POST";
-        links.push_back(invoke_link);
+        if (rest_svc->svc) {
+            YAML::Node invoke_link;
+            invoke_link["href"] = name;
+            invoke_link["title"] = "Invoke Resource";
+            invoke_link["method"] = "POST";
+            invoke_link["type"] = "application/json";
+            auto svcdef = YAML::Load(rest_svc->svc->service_definition);
+            if (svcdef["request"]) {
+                YAML::Node request_node;
+                for (const auto& req_seq : svcdef["request"]) {
+                    for (const auto& req : req_seq) {
+                        YAML::Node tmp;
+                        tmp["type"] = req.first;
+                        request_node[req.second] = tmp;
+                    }
+                }
+                invoke_link["request_fields"] = request_node;
+            }
+            if (svcdef["response"]) {
+                YAML::Node response_node;
+                for (const auto& req_seq : svcdef["response"]) {
+                    for (const auto& req : req_seq) {
+                        YAML::Node tmp;
+                        tmp["type"] = req.first;
+                        response_node[req.second] = tmp;
+                    }
+                }
+                invoke_link["response_fields"] = response_node;
+            }
+            links["invoke"] = invoke_link;
+        }
 
         YAML::Node list_link;
-        list_link["rel"] = "list";
         list_link["href"] = "/api/v2.0/list";
-        links.push_back(list_link);
+        links["list"] = list_link;
 
-
-        for (auto it = service_map.begin(); it != service_map.end(); ++it) {
-            if (it->first.compare(0, name.size(), name) == 0) {
-                YAML::Node sub_list_link;
-                sub_list_link["rel"] = it->first.substr(9);
-                sub_list_link["href"] = it->first;
-                links.push_back(sub_list_link);
-            }
+        for (const auto& kv : rest_svc->children) {
+            YAML::Node sub_list_link;
+            sub_list_link["href"] = name + "/" + kv.first;
+            links[kv.first] = sub_list_link;
         }
 
         answer["_links"] = links;
@@ -222,10 +195,13 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
          return response;
     }
 
+    if (!rest_svc->svc) {
+        return list_services(req);
+    }
     // request arguments
     robotkernel::service_arglist_t service_request;
 
-    YAML::Node message_definition = YAML::Load(_svc.service_definition);
+    YAML::Node message_definition = YAML::Load(rest_svc->svc->service_definition);
     if (message_definition["request"]) {
         const YAML::Node& request = message_definition["request"];
 
@@ -311,7 +287,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
 
     // call robotkernel service
     robotkernel::service_arglist_t service_response;
-    _svc.callback(service_request, service_response);
+    rest_svc->svc->callback(service_request, service_response);
 
     log(verbose, "service call returned, creating response...\n");
 
@@ -438,9 +414,9 @@ const std::shared_ptr<http_response> rest::list_services(const http_request& req
 
     pthread_mutex_lock(&service_map_lock);
 
-    for (auto it = service_map.begin(); it != service_map.end(); ++it) {
-        answer["services"].push_back(it->first);
-    }
+//    for (auto it = service_map.begin(); it != service_map.end(); ++it) {
+//        answer["services"].push_back(it->first);
+//    }
 
     pthread_mutex_unlock(&service_map_lock);
 
