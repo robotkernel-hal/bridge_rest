@@ -216,29 +216,28 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                 if (starts_with(key, "vector")) {
                     const size_t equals_idx = key.find_first_of('/');
                     if (std::string::npos != equals_idx) {
-                        string vector = key.substr(0, equals_idx);
-                        string real_key = key.substr(equals_idx + 1);
+                        key = key.substr(equals_idx + 1);
 
 #define add_vector_type(type) \
-                        if (real_key == #type) {                                                                       \
-                            std::vector<rk_type> entries;                                                      \
-                            for (const auto& value : content_node[value]) { \
-                                entries.push_back(value.as<type>()); \
-                            } \
-                            service_request.push_back(entries);                                                     \
+                        if (key.compare(#type) == 0) {                        \
+                            std::vector<type> entries;                        \
+                            for (const auto& value : content_node[value]) {   \
+                                entries.push_back(value.as<type>());          \
+                            }                                                 \
+                            service_request.push_back(entries);               \
                         }
-                        add_vector_type(uint64_t);
-                        add_vector_type(int64_t);
-                        add_vector_type(uint32_t);
-                        add_vector_type(int32_t);
-                        add_vector_type(uint16_t);
-                        add_vector_type(int16_t);
-                        add_vector_type(uint8_t);
-                        add_vector_type(int8_t);
-                        add_vector_type(float);
-                        add_vector_type(double);
-                        add_vector_type(char);
-                        add_vector_type(string);
+                        add_vector_type(uint64_t)
+                        else add_vector_type(int64_t)
+                        else add_vector_type(uint32_t)
+                        else add_vector_type(int32_t)
+                        else add_vector_type(uint16_t)
+                        else add_vector_type(int16_t)
+                        else add_vector_type(uint8_t)
+                        else add_vector_type(int8_t)
+                        else add_vector_type(float)
+                        else add_vector_type(double)
+                        else add_vector_type(char)
+                        else add_vector_type(string)
 #undef add_vector_type
                     }
                 } else {
@@ -249,7 +248,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                     }
 
 #define push_back_type2(type, dec_type) \
-                    if (key == #type) {                                 \
+                    if (key.compare(#type) == 0) {                      \
                         if (content_node[value]) {                      \
                             log(verbose, #type "  pushing to service_request, %d\n", (type)content_node[value].as<dec_type>()); \
                             service_request.push_back((type)content_node[value].as<dec_type>());         \
@@ -258,7 +257,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         }                                               \
                     }
 #define push_back_type(type) \
-                    if (key == #type) {                                 \
+                    if (key.compare(#type) == 0) {                      \
                         if (content_node[value]) {                      \
                             log(verbose, #type "  pushing to service_request, %d\n", (type)content_node[value].as<type>()); \
                             service_request.push_back((type)content_node[value].as<type>());         \
@@ -267,17 +266,17 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                         }                                               \
                     }
 
-                    push_back_type(uint64_t);
-                    push_back_type(int64_t);
-                    push_back_type(uint32_t);
-                    push_back_type(int32_t);
-                    push_back_type(uint16_t);
-                    push_back_type(int16_t);
-                    push_back_type2(uint8_t, uint16_t);
-                    push_back_type2(int8_t, int16_t);
-                    push_back_type(float);
-                    push_back_type(double);
-                    push_back_type(string);
+                    push_back_type(uint64_t)
+                    else push_back_type(int64_t)
+                    else push_back_type(uint32_t)
+                    else push_back_type(int32_t)
+                    else push_back_type(uint16_t)
+                    else push_back_type(int16_t)
+                    else push_back_type2(uint8_t, uint16_t)
+                    else push_back_type2(int8_t, int16_t)
+                    else push_back_type(float)
+                    else push_back_type(double)
+                    else push_back_type(string)
 #undef push_back_type
 #undef push_back_type2
                 }
@@ -310,52 +309,55 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                 if (starts_with(key, "vector")) {
                     const size_t equals_idx = key.find_first_of('/');
                     if (std::string::npos != equals_idx) {
-                        string vector = key.substr(0, equals_idx);
-                        string real_key = key.substr(equals_idx + 1);
+                        string key = key.substr(equals_idx + 1);
 
-                        const std::vector<rk_type> elem = service_response[i++];
 #define push_back_type2(type, type2)                            \
-                        if (real_key == #type) {                            \
+                        if (key.compare(#type) == 0) {                            \
+                            const std::vector<type>& elem = service_response[i]; \
                             for (unsigned i = 0; i < elem.size(); ++i) {    \
                                 const type2& v = (type)(elem[i]);          \
                                 answer[value].push_back(v);     \
                         } }
 #define push_back_type(type)                            \
-                        if (real_key == #type) {                            \
+                        if (key.compare(#type) == 0) {                            \
+                            const std::vector<type>& elem = service_response[i]; \
                             for (unsigned i = 0; i < elem.size(); ++i) {    \
                                 answer[value].push_back((type)(elem[i]));     \
                         } }
                         
-                        push_back_type(uint64_t);
-                        push_back_type(int64_t);
-                        push_back_type(uint32_t);
-                        push_back_type(int32_t);
-                        push_back_type(uint16_t);
-                        push_back_type(int16_t);
-                        push_back_type2(uint8_t, uint16_t);
-                        push_back_type2(int8_t, int16_t);
-                        push_back_type(float);
-                        push_back_type(double);
+                        push_back_type(uint64_t)
+                        else push_back_type(int64_t)
+                        else push_back_type(uint32_t)
+                        else push_back_type(int32_t)
+                        else push_back_type(uint16_t)
+                        else push_back_type(int16_t)
+                        else push_back_type2(uint8_t, uint16_t)
+                        else push_back_type2(int8_t, int16_t)
+                        else push_back_type(float)
+                        else push_back_type(double)
 #undef push_back_type
 #undef push_back_type2
-                        if (real_key == "string") {
-                            for (unsigned i = 0; i < elem.size(); ++i) {
-                                string v = elem[i];
+                        if (key.compare("string") == 0) {
+                            const std::vector<string>& elem = service_response[i];
+                            for (unsigned j = 0; j < elem.size(); ++j) {
+                                string v = elem[j];
                                 //v.erase(std::remove(v.begin(), v.end(), '\x00'), v.end());
                                 answer[value].push_back(v);
-                        } }
+                            } 
+                        }
 
+                        i++;
                     }
                 } else {
-#define push_back_type2(type, type2)                            \
-                    if (key == #type) {                                 \
+#define push_back_type2(type, type2)                                             \
+                    if (key.compare(#type) == 0) {                               \
                         const type2& v = (type)(service_response[i++]);          \
-                        answer[value] = v;                              \
+                        answer[value] = v;                                       \
                     }
-#define push_back_type(type)                            \
-                    if (key == #type) {                                 \
-                        const type& v = (type)(service_response[i++]);          \
-                        answer[value] = v;                              \
+#define push_back_type(type)                                                     \
+                    if (key.compare(#type) == 0) {                                          \
+                        const type& v = (type)(service_response[i++]);           \
+                        answer[value] = v;                                       \
                     }
 
                     push_back_type(uint64_t);
@@ -370,7 +372,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                     push_back_type(double);
 #undef push_back_type
 #undef push_back_type2
-                    if (key == "string") {
+                    if (key.compare("string") == 0) {
                         string v = service_response[i++];
                         v.erase(std::remove(v.begin(), v.end(), '\x00'), v.end());
                         answer[value] = v;
