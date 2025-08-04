@@ -309,7 +309,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                 if (starts_with(key, "vector")) {
                     const size_t equals_idx = key.find_first_of('/');
                     if (std::string::npos != equals_idx) {
-                        string key = key.substr(equals_idx + 1);
+                        key = key.substr(equals_idx + 1);
 
 #define push_back_type2(type, type2)                            \
                         if (key.compare(#type) == 0) {                            \
@@ -351,32 +351,34 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
                 } else {
 #define push_back_type2(type, type2)                                             \
                     if (key.compare(#type) == 0) {                               \
-                        const type2& v = (type)(service_response[i++]);          \
+                        const type2& v = (type)(service_response[i]);            \
                         answer[value] = v;                                       \
                     }
 #define push_back_type(type)                                                     \
-                    if (key.compare(#type) == 0) {                                          \
-                        const type& v = (type)(service_response[i++]);           \
+                    if (key.compare(#type) == 0) {                               \
+                        const type& v = (type)(service_response[i]);             \
                         answer[value] = v;                                       \
                     }
 
-                    push_back_type(uint64_t);
-                    push_back_type(int64_t);
-                    push_back_type(uint32_t);
-                    push_back_type(int32_t);
-                    push_back_type(uint16_t);
-                    push_back_type(int16_t);
-                    push_back_type2(uint8_t, uint16_t);
-                    push_back_type2(int8_t, int16_t);
-                    push_back_type(float);
-                    push_back_type(double);
+                    push_back_type(uint64_t)
+                    else push_back_type(int64_t)
+                    else push_back_type(uint32_t)
+                    else push_back_type(int32_t)
+                    else push_back_type(uint16_t)
+                    else push_back_type(int16_t)
+                    else push_back_type2(uint8_t, uint16_t)
+                    else push_back_type2(int8_t, int16_t)
+                    else push_back_type(float)
+                    else push_back_type(double)
 #undef push_back_type
 #undef push_back_type2
                     if (key.compare("string") == 0) {
-                        string v = service_response[i++];
+                        string v = service_response[i];
                         v.erase(std::remove(v.begin(), v.end(), '\x00'), v.end());
                         answer[value] = v;
                     }
+
+                    i++;
                 }
             }
         }
