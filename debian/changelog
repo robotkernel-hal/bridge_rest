@@ -1,4 +1,4 @@
-bridge-rest (6.0.0~pre1) unstable; urgency=low
+bridge-rest (6.0.0) unstable; urgency=low
 
   * change: license to LGPL-V3
   * cleanup: project structure
