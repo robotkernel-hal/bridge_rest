@@ -29,6 +29,7 @@
 
 using namespace std;
 using namespace robotkernel;
+using namespace robotkernel::helpers;
 
 BRIDGE_DEF(bridge_rest, bridge::rest);
 
