@@ -23,7 +23,6 @@
 
 #include "robotkernel/helpers.h"
 #include "robotkernel/service.h"
-#include "robotkernel/rk_type.h"
 
 #include "bridge_rest.h"
 
@@ -150,26 +149,28 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
             invoke_link["type"] = "application/json";
             auto svcdef = YAML::Load(rest_svc->svc->service_definition);
             if (svcdef["request"]) {
-                YAML::Node request_node;
-                for (const auto& req_seq : svcdef["request"]) {
-                    for (const auto& req : req_seq) {
-                        YAML::Node tmp;
-                        tmp["type"] = req.first;
-                        request_node[req.second] = tmp;
-                    }
-                }
-                invoke_link["request_fields"] = request_node;
+                invoke_link["request"] = svcdef["request"];
+                //YAML::Node request_node;
+                //for (const auto& req_seq : svcdef["request"]) {
+                //    for (const auto& req : req_seq) {
+                //        YAML::Node tmp;
+                //        tmp["type"] = req.first;
+                //        request_node[req.second] = tmp;
+                //    }
+                //}
+                //invoke_link["request_fields"] = request_node;
             }
             if (svcdef["response"]) {
-                YAML::Node response_node;
-                for (const auto& req_seq : svcdef["response"]) {
-                    for (const auto& req : req_seq) {
-                        YAML::Node tmp;
-                        tmp["type"] = req.first;
-                        response_node[req.second] = tmp;
-                    }
-                }
-                invoke_link["response_fields"] = response_node;
+                invoke_link["response"] = svcdef["response"];
+                //YAML::Node response_node;
+                //for (const auto& req_seq : svcdef["response"]) {
+                //    for (const auto& req : req_seq) {
+                //        YAML::Node tmp;
+                //        tmp["type"] = req.first;
+                //        response_node[req.second] = tmp;
+                //    }
+                //}
+                //invoke_link["response_fields"] = response_node;
             }
             links["invoke"] = invoke_link;
         }
@@ -199,6 +200,8 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
     if (!rest_svc->svc) {
         return list_services(req);
     }
+
+#if 0
     // request arguments
     robotkernel::service_arglist_t service_request;
 
@@ -284,13 +287,17 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
             }
         }
     }
+#endif
 
     // call robotkernel service
-    robotkernel::service_arglist_t service_response;
-    rest_svc->svc->callback(service_request, service_response);
+//    robotkernel::service_arglist_t service_response;
+//    rest_svc->svc->callback(service_request, service_response);
+    YAML::Node response_node;
+    rest_svc->svc->callback(content_node, response_node);
 
     log(verbose, "service call returned, creating response...\n");
 
+#if 0
     std::list<uint8_t *> to_delete;
 
     YAML::Node answer = YAML::Node(YAML::NodeType::Map);
@@ -389,6 +396,7 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
             it != to_delete.end(); ++it) {
         delete[] (*it);
     }
+#endif
 
     YAML::Node links(YAML::NodeType::Sequence);
 
@@ -402,10 +410,10 @@ const std::shared_ptr<http_response> rest::render(const http_request& req) {
     list_link["href"] = "/api/v2.0/list";
     links.push_back(list_link);
 
-    answer["_links"] = links;
+    response_node["_links"] = links;
 
     YAML::Emitter emitter;
-    emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << answer;
+    emitter << YAML::DoubleQuoted << YAML::Flow << YAML::BeginSeq << response_node;
     std::string json(emitter.c_str() + 1);
  
     auto response = std::shared_ptr<http_response>(
@@ -419,9 +427,11 @@ const std::shared_ptr<http_response> rest::list_services(const http_request& req
 
     pthread_mutex_lock(&service_map_lock);
 
-//    for (auto it = service_map.begin(); it != service_map.end(); ++it) {
-//        answer["services"].push_back(it->first);
-//    }
+    for (auto it = services.begin(); it != services.end(); ++it) {
+        if (it->svc) {
+            answer["services"].push_back(it->svc->owner + "." + it->svc->name);
+        }
+    }
 
     pthread_mutex_unlock(&service_map_lock);
 
